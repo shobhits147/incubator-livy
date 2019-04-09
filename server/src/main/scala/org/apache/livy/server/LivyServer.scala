@@ -43,7 +43,7 @@ import org.apache.livy.server.ui.UIServlet
 import org.apache.livy.sessions.{BatchSessionManager, InteractiveSessionManager}
 import org.apache.livy.sessions.SessionManager.SESSION_RECOVERY_MODE_OFF
 import org.apache.livy.utils.LivySparkUtils._
-import org.apache.livy.utils.SparkYarnApp
+import org.apache.livy.utils.{SparkKubernetesApp, SparkYarnApp}
 
 class LivyServer extends Logging {
 
@@ -139,10 +139,13 @@ class LivyServer extends Logging {
 
     testRecovery(livyConf)
 
-    // Initialize YarnClient ASAP to save time.
+    // Initialize YarnClient/KubernetesClient ASAP to save time.
     if (livyConf.isRunningOnYarn()) {
       SparkYarnApp.init(livyConf)
       Future { SparkYarnApp.yarnClient }
+    } else if (livyConf.isRunningOnKubernetes()) {
+      SparkKubernetesApp.init(livyConf)
+      Future { SparkKubernetesApp.kubernetesClient }
     }
 
     StateStore.init(livyConf)
@@ -386,10 +389,10 @@ class LivyServer extends Logging {
   }
 
   private[livy] def testRecovery(livyConf: LivyConf): Unit = {
-    if (!livyConf.isRunningOnYarn()) {
-      // If recovery is turned on but we are not running on YARN, quit.
+    if (!livyConf.isRunningOnYarn() && !livyConf.isRunningOnKubernetes()) {
+      // If recovery is turned on but we are not running on YARN or Kubernetes, quit.
       require(livyConf.get(LivyConf.RECOVERY_MODE) == SESSION_RECOVERY_MODE_OFF,
-        "Session recovery requires YARN.")
+        s"Session recovery requires YARN or Kubernetes.")
     }
   }
 }
