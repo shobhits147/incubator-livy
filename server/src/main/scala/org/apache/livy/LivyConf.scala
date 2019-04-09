@@ -62,7 +62,8 @@ object LivyConf {
   val SERVER_PORT = Entry("livy.server.port", 8998)
   val SERVER_BASE_PATH = Entry("livy.ui.basePath", "")
 
-  val UI_ENABLED = Entry("livy.ui.enabled", true)
+  val UI_ENABLED            = Entry("livy.ui.enabled", true)
+  val UI_HISTORY_SERVER_URL = Entry("livy.ui.history-server-url", "http://spark-history-server")
 
   val REQUEST_HEADER_SIZE = Entry("livy.server.request-header.size", 131072)
   val RESPONSE_HEADER_SIZE = Entry("livy.server.response-header.size", 131072)
@@ -212,6 +213,29 @@ object LivyConf {
   val YARN_APP_LEAKAGE_CHECK_TIMEOUT = Entry("livy.server.yarn.app-leakage.check-timeout", "600s")
   // how often to check livy session leakage
   val YARN_APP_LEAKAGE_CHECK_INTERVAL = Entry("livy.server.yarn.app-leakage.check-interval", "60s")
+
+  // Kubernetes master API endpoint.
+  val KUBERNETES_MASTER_URL        = Entry("livy.server.kubernetes.master-url", "https://kubernetes.default.svc")
+  // Kubernetes oauth token file path.
+  val KUBERNETES_OAUTH_TOKEN_FILE  = Entry("livy.server.kubernetes.oauthTokenFile", "")
+  // Kubernetes oauth token string value.
+  val KUBERNETES_OAUTH_TOKEN_VALUE = Entry("livy.server.kubernetes.oauthTokenValue", "")
+  // Kubernetes CA cert file path.
+  val KUBERNETES_CA_CERT_FILE      = Entry("livy.server.kubernetes.caCertFile", "")
+  // Kubernetes client key file path.
+  val KUBERNETES_CLIENT_KEY_FILE   = Entry("livy.server.kubernetes.clientKeyFile", "")
+  // Kubernetes client cert file path.
+  val KUBERNETES_CLIENT_CERT_FILE  = Entry("livy.server.kubernetes.clientCertFile", "")
+
+  // If Livy can't find the Kubernetes app within this time, consider it lost.
+  val KUBERNETES_APP_LOOKUP_TIMEOUT = Entry("livy.server.kubernetes.app-lookup-timeout", "600s")
+  // How often Livy polls Kubernetes to refresh Kubernetes app state.
+  val KUBERNETES_POLL_INTERVAL      = Entry("livy.server.kubernetes.poll-interval", "15s")
+
+  // How long to check livy session leakage
+  val KUBERNETES_APP_LEAKAGE_CHECK_TIMEOUT  = Entry("livy.server.yarn.app-leakage.check-timeout", "600s")
+  // how often to check livy session leakage
+  val KUBERNETES_APP_LEAKAGE_CHECK_INTERVAL = Entry("livy.server.yarn.app-leakage.check-interval", "60s")
 
   // Whether session timeout should be checked, by default it will be checked, which means inactive
   // session will be stopped after "livy.server.session.timeout"
