@@ -214,8 +214,6 @@ object LivyConf {
   // how often to check livy session leakage
   val YARN_APP_LEAKAGE_CHECK_INTERVAL = Entry("livy.server.yarn.app-leakage.check-interval", "60s")
 
-  // Kubernetes master API endpoint.
-  val KUBERNETES_MASTER_URL        = Entry("livy.server.kubernetes.master-url", "https://kubernetes.default.svc")
   // Kubernetes oauth token file path.
   val KUBERNETES_OAUTH_TOKEN_FILE  = Entry("livy.server.kubernetes.oauthTokenFile", "")
   // Kubernetes oauth token string value.
@@ -232,10 +230,25 @@ object LivyConf {
   // How often Livy polls Kubernetes to refresh Kubernetes app state.
   val KUBERNETES_POLL_INTERVAL      = Entry("livy.server.kubernetes.poll-interval", "15s")
 
-  // How long to check livy session leakage
+  // How long to check livy session leakage.
   val KUBERNETES_APP_LEAKAGE_CHECK_TIMEOUT  = Entry("livy.server.yarn.app-leakage.check-timeout", "600s")
-  // how often to check livy session leakage
+  // how often to check livy session leakage.
   val KUBERNETES_APP_LEAKAGE_CHECK_INTERVAL = Entry("livy.server.yarn.app-leakage.check-interval", "60s")
+
+  // Weather to create Kubernetes Nginx Ingress for Spark UI.
+  val KUBERNETES_INGRESS_CREATE                  = Entry("livy.server.kubernetes.ingress.create", false)
+  // Kubernetes Nginx Ingress protocol.
+  val KUBERNETES_INGRESS_PROTOCOL                = Entry("livy.server.kubernetes.ingress.protocol", "http")
+  // Kubernetes Nginx Ingress host.
+  val KUBERNETES_INGRESS_HOST                    = Entry("livy.server.kubernetes.ingress.host", "localhost")
+  // Kubernetes Nginx Ingress additional configuration snippet.
+  val KUBERNETES_INGRESS_ADDITIONAL_CONF_SNIPPET = Entry("livy.server.kubernetes.ingress.additionalConfSnippet", "")
+  // Kubernetes Nginx Ingress additional annotations: key1=value1;key2=value2;... .
+  val KUBERNETES_INGRESS_ADDITIONAL_ANNOTATIONS  = Entry("livy.server.kubernetes.ingress.additionalAnnotations", "")
+  // Kubernetes secret name for Nginx Ingress TLS.
+  // Is omitted if 'livy.server.kubernetes.ingress.protocol' value doesn't end with 's'
+  val KUBERNETES_INGRESS_TLS_SECRET_NAME         = Entry("livy.server.kubernetes.ingress.tls.secretName", "spark-cluster-tls")
+
 
   // Whether session timeout should be checked, by default it will be checked, which means inactive
   // session will be stopped after "livy.server.session.timeout"
@@ -344,6 +357,9 @@ class LivyConf(loadDefaults: Boolean) extends ClientConf[LivyConf](null) {
 
   /** Return true if spark master starts with yarn. */
   def isRunningOnYarn(): Boolean = sparkMaster().startsWith("yarn")
+
+  /** Return true if spark master starts with k8s. */
+  def isRunningOnKubernetes(): Boolean = sparkMaster().startsWith("k8s")
 
   /** Return the spark deploy mode Livy sessions should use. */
   def sparkDeployMode(): Option[String] = Option(get(LIVY_SPARK_DEPLOY_MODE)).filterNot(_.isEmpty)
