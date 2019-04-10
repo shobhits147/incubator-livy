@@ -19,8 +19,8 @@ package org.apache.livy.server
 
 import java.io.{BufferedInputStream, InputStream}
 import java.net.InetAddress
-import java.util.concurrent._
 import java.util.EnumSet
+import java.util.concurrent._
 import javax.servlet._
 
 import scala.collection.JavaConverters._
@@ -42,8 +42,8 @@ import org.apache.livy.server.recovery.{SessionStore, StateStore}
 import org.apache.livy.server.ui.UIServlet
 import org.apache.livy.sessions.{BatchSessionManager, InteractiveSessionManager}
 import org.apache.livy.sessions.SessionManager.SESSION_RECOVERY_MODE_OFF
-import org.apache.livy.utils.LivySparkUtils._
 import org.apache.livy.utils.{SparkKubernetesApp, SparkYarnApp}
+import org.apache.livy.utils.LivySparkUtils._
 
 class LivyServer extends Logging {
 

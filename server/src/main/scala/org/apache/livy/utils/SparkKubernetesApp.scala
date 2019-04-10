@@ -38,7 +38,8 @@ import org.apache.livy.{LivyConf, Logging, Utils}
 object SparkKubernetesApp extends Logging {
 
   // KubernetesClient is thread safe. Create once, share it across threads.
-  lazy val kubernetesClient: DefaultKubernetesClient = KubernetesClientFactory.createKubernetesClient(livyConf)
+  lazy val kubernetesClient: DefaultKubernetesClient =
+    KubernetesClientFactory.createKubernetesClient(livyConf)
 
   private val leakedAppTags = new java.util.concurrent.ConcurrentHashMap[String, Long]()
 
@@ -123,7 +124,8 @@ class SparkKubernetesApp private[utils] (
   // Exposed for unit test.
   // TODO Instead of spawning a thread for every session, create a centralized thread and
   // batch Kubernetes queries.
-  private[utils] val kubernetesAppMonitorThread = Utils.startDaemonThread(s"kubernetesAppMonitorThread-$this") {
+  private[utils] val kubernetesAppMonitorThread = Utils
+    .startDaemonThread(s"kubernetesAppMonitorThread-$this") {
     try {
       // Get KubernetesApplication by appTag.
       val app: KubernetesApplication = try {
