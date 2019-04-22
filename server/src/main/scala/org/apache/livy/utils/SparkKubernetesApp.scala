@@ -151,7 +151,8 @@ class SparkKubernetesApp private[utils] (
           Clock.sleep(pollInterval.toMillis)
 
           // Refresh application state
-          val appReport = kubernetesClient.getApplicationReport(app, cacheLogSize = cacheLogSize)
+          val appReport =
+            kubernetesClient.getApplicationReport(livyConf, app, cacheLogSize = cacheLogSize)
           kubernetesAppLog = appReport.getApplicationLog
           kubernetesDiagnostics = appReport.getApplicationDiagnostics
           changeState(mapKubernetesState(appReport.getApplicationState, appTag))
@@ -318,7 +319,7 @@ class KubernetesApplication(driverPod: Pod) {
 }
 
 class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
-  appLog: IndexedSeq[String], ingress: Option[Ingress]) {
+  appLog: IndexedSeq[String], ingress: Option[Ingress], livyConf: LivyConf) {
 
   def getApplicationState: String =
     driver.map(_.getStatus.getPhase.toLowerCase).getOrElse("unknown")
@@ -330,9 +331,7 @@ class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
     val path = driver
       .map(_.getMetadata.getLabels.getOrDefault(KubernetesConstants.SPARK_APP_TAG_LABEL, "unknown"))
       .getOrElse("unknown")
-    val tlsEnabled = ingress.exists(_.getSpec.getTls.isEmpty)
-    var protocol = "http"
-    if (tlsEnabled) protocol += "s"
+    val protocol = livyConf.get(LivyConf.KUBERNETES_INGRESS_HOST)
     s"$protocol://${host.getOrElse("")}/$path"
   }
 
@@ -414,6 +413,7 @@ object KubernetesExtensions {
     }
 
     def getApplicationReport(
+      livyConf: LivyConf,
       app: KubernetesApplication,
       cacheLogSize: Int,
       appTagLabel: String = SPARK_APP_TAG_LABEL
@@ -432,7 +432,7 @@ object KubernetesExtensions {
       val ingress = client.extensions.ingresses.inNamespace(app.getApplicationNamespace)
         .withLabel(SPARK_APP_TAG_LABEL, app.getApplicationTag)
         .list.getItems.asScala.headOption
-      new KubernetesAppReport(driver, executors, appLog, ingress)
+      new KubernetesAppReport(driver, executors, appLog, ingress, livyConf)
     }
 
     def createSparkUIIngress(app: KubernetesApplication, livyConf: LivyConf): Unit = {
