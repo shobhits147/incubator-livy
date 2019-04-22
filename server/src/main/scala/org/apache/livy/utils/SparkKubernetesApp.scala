@@ -331,7 +331,7 @@ class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
     val path = driver
       .map(_.getMetadata.getLabels.getOrDefault(KubernetesConstants.SPARK_APP_TAG_LABEL, "unknown"))
       .getOrElse("unknown")
-    val protocol = livyConf.get(LivyConf.KUBERNETES_INGRESS_HOST)
+    val protocol = livyConf.get(LivyConf.KUBERNETES_INGRESS_PROTOCOL)
     s"$protocol://${host.getOrElse("")}/$path"
   }
 
