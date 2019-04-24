@@ -16,6 +16,7 @@
  */
 package org.apache.livy.utils
 
+import java.net.URLEncoder
 import java.util.Collections
 import java.util.concurrent.TimeoutException
 
@@ -340,9 +341,10 @@ class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
         val timeRange = livyConf.get(LivyConf.KUBERNETES_GRAFANA_TIME_RANGE)
         val lokiDatasource = livyConf.get(LivyConf.KUBERNETES_GRAFANA_LOKI_DATASOURCE)
         return Some(
-          s"""$grafanaUrl/explore?left=["now-$timeRange","now","$lokiDatasource",""" +
-            s"""{"expr":"{job%3D\"$namespace%2F$driverPodName\"}"},""" +
-            s"""{"ui":[true,true,true,"none"]}]"""
+          s"""$grafanaUrl/explore?left=""" + URLEncoder.encode(
+            s"""["now-$timeRange","now","$lokiDatasource",""" +
+              s"""{"expr":"{job=\\"${namespace.get}/${driverPodName.get}\\"}"},""" +
+              s"""{"ui":[true,true,true,"none"]}]""", "UTF-8")
         )
       }
     }
@@ -361,11 +363,11 @@ class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
         val labels = e.getMetadata.getLabels
         val sparkAppTag = labels.get(SPARK_APP_TAG_LABEL)
         val sparkExecId = labels.get(SPARK_EXEC_ID_LABEL)
-        s"executor-$sparkExecId#" +
-          s"""$grafanaUrl/explore?left=["now-$timeRange","now","$lokiDatasource",""" +
-          s"""{"expr":"{$sparkAppTagLogLabel%3D\"$sparkAppTag\",""" +
-          s"""$sparkExecIdLogLabel%3D\"$sparkExecId\"}"},""" +
-          s"""{"ui":[true,true,true,"none"]}]"""
+        s"executor-$sparkExecId#$grafanaUrl/explore?left=" + URLEncoder.encode(
+          s"""["now-$timeRange","now","$lokiDatasource",""" +
+            s"""{"expr":"{$sparkAppTagLogLabel=\\"$sparkAppTag\\",""" +
+            s"""$sparkExecIdLogLabel=\\"$sparkExecId\\"}"},""" +
+            s"""{"ui":[true,true,true,"none"]}]""", "UTF-8")
       })
       if (urls.nonEmpty) return Some(urls.mkString(";"))
     }
