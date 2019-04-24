@@ -157,7 +157,11 @@ class SparkKubernetesApp private[utils] (
           kubernetesDiagnostics = appReport.getApplicationDiagnostics
           changeState(mapKubernetesState(appReport.getApplicationState, appTag))
 
-          val latestAppInfo = AppInfo(sparkUiUrl = Option(appReport.getTrackingUrl))
+          val latestAppInfo = AppInfo(
+            appReport.getDriverLogUrl,
+            appReport.getTrackingUrl,
+            appReport.getExecutorsLogUrls
+          )
           if (appInfo != latestAppInfo) {
             listener.foreach(_.infoChanged(latestAppInfo))
             appInfo = latestAppInfo
@@ -293,6 +297,7 @@ object KubernetesConstants {
   val SPARK_APP_ID_LABEL = "spark-app-selector"
   val SPARK_APP_TAG_LABEL = "spark-app-tag"
   val SPARK_ROLE_LABEL = "spark-role"
+  val SPARK_EXEC_ID_LABEL = "spark-exec-id"
   val SPARK_ROLE_DRIVER = "driver"
   val SPARK_ROLE_EXECUTOR = "executor"
   val SPARK_UI_URL_LABEL = "spark-ui-url"
@@ -326,13 +331,54 @@ class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
 
   def getApplicationLog: IndexedSeq[String] = appLog
 
-  def getTrackingUrl: String = {
+  def getDriverLogUrl: Option[String] = {
+    if (livyConf.getBoolean(LivyConf.KUBERNETES_GRAFANA_LOKI_ENABLED)) {
+      val namespace = driver.map(_.getMetadata.getNamespace)
+      val driverPodName = driver.map(_.getMetadata.getName)
+      if (namespace.isDefined && driverPodName.isDefined) {
+        val grafanaUrl = livyConf.get(LivyConf.KUBERNETES_GRAFANA_URL)
+        val timeRange = livyConf.get(LivyConf.KUBERNETES_GRAFANA_TIME_RANGE)
+        val lokiDatasource = livyConf.get(LivyConf.KUBERNETES_GRAFANA_LOKI_DATASOURCE)
+        Some(
+          s"""$grafanaUrl/explore?left=["now-$timeRange","now","$lokiDatasource",
+             |{"expr":"{job%3D\"$namespace%2F$driverPodName\"}"},
+             |{"ui":[true,true,true,"none"]}]""".stripMargin
+        )
+      }
+    }
+    None
+  }
+
+  def getExecutorsLogUrls: Option[String] = {
+    import KubernetesConstants._
+    if (livyConf.getBoolean(LivyConf.KUBERNETES_GRAFANA_LOKI_ENABLED)) {
+      val grafanaUrl = livyConf.get(LivyConf.KUBERNETES_GRAFANA_URL)
+      val lokiDatasource = livyConf.get(LivyConf.KUBERNETES_GRAFANA_LOKI_DATASOURCE)
+      val timeRange = livyConf.get(LivyConf.KUBERNETES_GRAFANA_TIME_RANGE)
+      val sparkAppTagLogLabel = SPARK_APP_TAG_LABEL.replaceAll("-", "_")
+      val sparkExecIdLogLabel = SPARK_EXEC_ID_LABEL.replaceAll("-", "_")
+      val urls = executors.map(e => {
+        val labels = e.getMetadata.getLabels
+        val sparkAppTag = labels.get(SPARK_APP_TAG_LABEL)
+        val sparkExecId = labels.get(SPARK_EXEC_ID_LABEL)
+        s"""executor-$sparkExecId#
+           |$grafanaUrl/explore?left=["now-$timeRange","now","$lokiDatasource",
+           |{"expr":"{$sparkAppTagLogLabel%3D\"$sparkAppTag\",
+           |$sparkExecIdLogLabel%3D\"$sparkExecId\"}"},
+           |{"ui":[true,true,true,"none"]}]""".stripMargin
+      })
+      if (urls.nonEmpty) Some(urls.mkString(";"))
+    }
+    None
+  }
+
+  def getTrackingUrl: Option[String] = {
     val host = ingress.map(_.getSpec.getRules.get(0).getHost)
     val path = driver
       .map(_.getMetadata.getLabels.getOrDefault(KubernetesConstants.SPARK_APP_TAG_LABEL, "unknown"))
-      .getOrElse("unknown")
     val protocol = livyConf.get(LivyConf.KUBERNETES_INGRESS_PROTOCOL)
-    s"$protocol://${host.getOrElse("")}/$path"
+    if (host.isDefined && path.isDefined) Some(s"$protocol://${host.getOrElse("")}/$path")
+    else None
   }
 
   def getApplicationDiagnostics: IndexedSeq[String] = {
