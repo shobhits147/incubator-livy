@@ -41,7 +41,7 @@ td .progress {
   margin: 0;
 }
 
-td .with-scroll-bar {
+.with-scroll-bar {
   display: block;
   overflow-y: scroll;
   max-height: 200px;
