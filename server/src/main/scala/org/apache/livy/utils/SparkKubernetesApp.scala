@@ -340,9 +340,9 @@ class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
         val timeRange = livyConf.get(LivyConf.KUBERNETES_GRAFANA_TIME_RANGE)
         val lokiDatasource = livyConf.get(LivyConf.KUBERNETES_GRAFANA_LOKI_DATASOURCE)
         return Some(
-          s"""$grafanaUrl/explore?left=["now-$timeRange","now","$lokiDatasource",
-             |{"expr":"{job%3D\"$namespace%2F$driverPodName\"}"},
-             |{"ui":[true,true,true,"none"]}]""".stripMargin
+          s"""$grafanaUrl/explore?left=["now-$timeRange","now","$lokiDatasource",""" +
+            s"""{"expr":"{job%3D\"$namespace%2F$driverPodName\"}"},""" +
+            s"""{"ui":[true,true,true,"none"]}]"""
         )
       }
     }
@@ -361,11 +361,11 @@ class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
         val labels = e.getMetadata.getLabels
         val sparkAppTag = labels.get(SPARK_APP_TAG_LABEL)
         val sparkExecId = labels.get(SPARK_EXEC_ID_LABEL)
-        s"""executor-$sparkExecId#
-           |$grafanaUrl/explore?left=["now-$timeRange","now","$lokiDatasource",
-           |{"expr":"{$sparkAppTagLogLabel%3D\"$sparkAppTag\",
-           |$sparkExecIdLogLabel%3D\"$sparkExecId\"}"},
-           |{"ui":[true,true,true,"none"]}]""".stripMargin
+        s"executor-$sparkExecId#" +
+          s"""$grafanaUrl/explore?left=["now-$timeRange","now","$lokiDatasource",""" +
+          s"""{"expr":"{$sparkAppTagLogLabel%3D\"$sparkAppTag\",""" +
+          s"""$sparkExecIdLogLabel%3D\"$sparkExecId\"}"},""" +
+          s"""{"ui":[true,true,true,"none"]}]"""
       })
       if (urls.nonEmpty) return Some(urls.mkString(";"))
     }
