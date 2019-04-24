@@ -88,6 +88,18 @@ function tdWrap(val) {
   return "<td>" + inner + "</td>";
 }
 
+function tdWrapWithClass(val, cl) {
+  var inner = "";
+  if (val != null) {
+    inner = val;
+  }
+  var clVal = "";
+  if (cl != null) {
+      clVal = " class=\"" + cl + "\"";
+  }
+  return "<td" + clVal + ">" + inner + "</td>";
+}
+
 function preWrap(inner) {
   return "<pre>" + escapeHtml(inner) + "</pre>";
 }
