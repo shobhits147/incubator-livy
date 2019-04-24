@@ -339,7 +339,7 @@ class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
         val grafanaUrl = livyConf.get(LivyConf.KUBERNETES_GRAFANA_URL)
         val timeRange = livyConf.get(LivyConf.KUBERNETES_GRAFANA_TIME_RANGE)
         val lokiDatasource = livyConf.get(LivyConf.KUBERNETES_GRAFANA_LOKI_DATASOURCE)
-        Some(
+        return Some(
           s"""$grafanaUrl/explore?left=["now-$timeRange","now","$lokiDatasource",
              |{"expr":"{job%3D\"$namespace%2F$driverPodName\"}"},
              |{"ui":[true,true,true,"none"]}]""".stripMargin
@@ -367,7 +367,7 @@ class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
            |$sparkExecIdLogLabel%3D\"$sparkExecId\"}"},
            |{"ui":[true,true,true,"none"]}]""".stripMargin
       })
-      if (urls.nonEmpty) Some(urls.mkString(";"))
+      if (urls.nonEmpty) return Some(urls.mkString(";"))
     }
     None
   }
@@ -377,7 +377,7 @@ class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
     val path = driver
       .map(_.getMetadata.getLabels.getOrDefault(KubernetesConstants.SPARK_APP_TAG_LABEL, "unknown"))
     val protocol = livyConf.get(LivyConf.KUBERNETES_INGRESS_PROTOCOL)
-    if (host.isDefined && path.isDefined) Some(s"$protocol://${host.getOrElse("")}/$path")
+    if (host.isDefined && path.isDefined) Some(s"$protocol://${host.get}/${path.get}")
     else None
   }
 
