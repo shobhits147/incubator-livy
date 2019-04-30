@@ -101,7 +101,7 @@ object InteractiveSession extends Logging {
             "spark.executor.cores" -> request.executorCores.map(_.toDouble.ceil.toInt.toString),
             "spark.kubernetes.executor.request.cores" -> request.executorCores.map(_.toString),
             "spark.driver.cores" -> driverCores,
-            "spark.kubernetes.driver.request.cores" -> driverCores,
+            "spark.kubernetes.driver.request.cores" -> driverCores
           )
         } else {
           Map(
