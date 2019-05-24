@@ -86,25 +86,14 @@ object InteractiveSession extends Logging {
       val builderProperties = prepareBuilderProp(conf, request.kind, livyConf)
 
       val userOpts: Map[String, Option[String]] = Map(
+        "spark.driver.cores" -> request.driverCores.map(_.toString),
+        SparkLauncher.EXECUTOR_CORES -> request.executorCores.map(_.toString),
         SparkLauncher.DRIVER_MEMORY -> request.driverMemory.map(_.toString),
         SparkLauncher.EXECUTOR_MEMORY -> request.executorMemory.map(_.toString),
         "spark.executor.instances" -> request.numExecutors.map(_.toString),
-        "spark.app.name" -> request.name.map(_.toString)
-      ) ++ {
-        if (livyConf.isRunningOnKubernetes()) {
-          Map(
-            "spark.kubernetes.executor.request.cores" -> request.executorCores.map(_.toString),
-            "spark.kubernetes.executor.limit.cores" -> request.executorCores.map(_.toString),
-            "spark.kubernetes.driver.limit.cores" -> request.driverCores.map(_.toString)
-          )
-        } else {
-          Map(
-            SparkLauncher.EXECUTOR_CORES -> request.executorCores.map(_.toString),
-            "spark.driver.cores" -> request.driverCores.map(_.toString),
-            "spark.yarn.queue" -> request.queue
-          )
-        }
-      }
+        "spark.app.name" -> request.name.map(_.toString),
+        "spark.yarn.queue" -> request.queue
+      )
 
       userOpts.foreach { case (key, opt) =>
         opt.foreach { value => builderProperties.put(key, value) }
