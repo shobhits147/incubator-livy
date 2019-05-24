@@ -101,11 +101,7 @@ class SparkProcessBuilder(livyConf: LivyConf) extends Logging {
   }
 
   def driverCores(driverCores: String): SparkProcessBuilder = {
-    if (livyConf.isRunningOnKubernetes()) {
-      conf("spark.kubernetes.driver.limit.cores", driverCores)
-    } else {
-      conf("spark.driver.cores", driverCores)
-    }
+    conf("spark.driver.cores", driverCores)
   }
 
   def executorCores(executorCores: Int): SparkProcessBuilder = {
@@ -113,12 +109,7 @@ class SparkProcessBuilder(livyConf: LivyConf) extends Logging {
   }
 
   def executorCores(executorCores: String): SparkProcessBuilder = {
-    if (livyConf.isRunningOnKubernetes()) {
-      conf("spark.kubernetes.executor.request.cores", executorCores)
-      conf("spark.kubernetes.executor.limit.cores", executorCores)
-    } else {
-      conf("spark.executor.cores", executorCores)
-    }
+    conf("spark.executor.cores", executorCores)
   }
 
   def executorMemory(executorMemory: String): SparkProcessBuilder = {
