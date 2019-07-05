@@ -87,8 +87,8 @@ object InteractiveSession extends Logging {
 
       val userOpts: Map[String, Option[String]] = Map(
         "spark.driver.cores" -> request.driverCores.map(_.toString),
-        SparkLauncher.EXECUTOR_CORES -> request.executorCores.map(_.toString),
         SparkLauncher.DRIVER_MEMORY -> request.driverMemory.map(_.toString),
+        SparkLauncher.EXECUTOR_CORES -> request.executorCores.map(_.toString),
         SparkLauncher.EXECUTOR_MEMORY -> request.executorMemory.map(_.toString),
         "spark.executor.instances" -> request.numExecutors.map(_.toString),
         "spark.app.name" -> request.name.map(_.toString),
