@@ -25,7 +25,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Success, Failure, Try}
 import scala.util.control.NonFatal
 
 import io.fabric8.kubernetes.api.model._
@@ -33,7 +33,6 @@ import io.fabric8.kubernetes.api.model.extensions.{Ingress, IngressBuilder}
 import io.fabric8.kubernetes.client._
 import io.fabric8.kubernetes.client.ConfigBuilder
 import org.apache.commons.lang.StringUtils
-
 import org.apache.livy.{LivyConf, Logging, Utils}
 
 object SparkKubernetesApp extends Logging {
@@ -152,8 +151,10 @@ class SparkKubernetesApp private[utils] (
           Clock.sleep(pollInterval.toMillis)
 
           // Refresh application state
-          val appReport =
+          val appReport = withRetry {
             kubernetesClient.getApplicationReport(livyConf, app, cacheLogSize = cacheLogSize)
+          }
+
           kubernetesAppLog = appReport.getApplicationLog
           kubernetesDiagnostics = appReport.getApplicationDiagnostics
           changeState(mapKubernetesState(appReport.getApplicationState, appTag))
@@ -179,7 +180,7 @@ class SparkKubernetesApp private[utils] (
         kubernetesDiagnostics = ArrayBuffer("Session stopped by user.")
         changeState(SparkApp.State.KILLED)
       case NonFatal(e) =>
-        error(s"Error whiling refreshing Kubernetes state", e)
+        error(s"Error while refreshing Kubernetes state", e)
         kubernetesDiagnostics = ArrayBuffer(e.getMessage)
         changeState(SparkApp.State.FAILED)
     } finally {
@@ -253,6 +254,18 @@ class SparkKubernetesApp private[utils] (
           Clock.sleep(pollInterval.toMillis)
           getAppFromTag(appTag, pollInterval, deadline)
         }
+    }
+  }
+
+  // Returning T, throwing the exception on failure
+  @tailrec
+  private def withRetry[T](fn: => T, n: Int = 3, retryBackoff: Long = 1000): T = {
+    Try { fn } match {
+      case Success(x) => x
+      case _ if n > 1 =>
+        Thread.sleep(Math.max(retryBackoff, 1000))
+        withRetry(fn, n - 1)
+      case Failure(e) => throw e
     }
   }
 
