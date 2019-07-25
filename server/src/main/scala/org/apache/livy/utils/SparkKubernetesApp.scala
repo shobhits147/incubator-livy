@@ -25,7 +25,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
 import io.fabric8.kubernetes.api.model._
@@ -33,6 +33,7 @@ import io.fabric8.kubernetes.api.model.extensions.{Ingress, IngressBuilder}
 import io.fabric8.kubernetes.client._
 import io.fabric8.kubernetes.client.ConfigBuilder
 import org.apache.commons.lang.StringUtils
+
 import org.apache.livy.{LivyConf, Logging, Utils}
 
 object SparkKubernetesApp extends Logging {
