@@ -232,10 +232,10 @@ object LivyConf {
 
   // How long to check livy session leakage.
   val KUBERNETES_APP_LEAKAGE_CHECK_TIMEOUT =
-    Entry("livy.server.yarn.app-leakage.check-timeout", "600s")
-  // how often to check livy session leakage.
+    Entry("livy.server.kubernetes.app-leakage.check-timeout", "600s")
+  // How often to check livy session leakage.
   val KUBERNETES_APP_LEAKAGE_CHECK_INTERVAL =
-    Entry("livy.server.yarn.app-leakage.check-interval", "60s")
+    Entry("livy.server.kubernetes.app-leakage.check-interval", "60s")
 
   // Weather to create Kubernetes Nginx Ingress for Spark UI.
   val KUBERNETES_INGRESS_CREATE = Entry("livy.server.kubernetes.ingress.create", false)
