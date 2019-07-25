@@ -88,7 +88,7 @@
     <guava.version>15.0</guava.version>
     <httpclient.version>4.5.3</httpclient.version>
     <httpcore.version>4.4.4</httpcore.version>
-    <jackson.version>2.9.8</jackson.version>
+    <jackson.version>2.9.9</jackson.version>
     <javax.servlet-api.version>3.1.0</javax.servlet-api.version>
     <jetty.version>9.3.24.v20180605</jetty.version>
     <json4s.version>3.2.11</json4s.version>
@@ -810,9 +810,6 @@
             <requireMavenVersion>
               <version>[3.0.0,)</version>
             </requireMavenVersion>
-            <requireOS>
-              <family>unix</family>
-            </requireOS>
           </rules>
         </configuration>
         <executions>
@@ -1049,7 +1046,7 @@
         <spark.version>${spark.scala-2.11.version}</spark.version>
         <netty.spark-2.11.version>4.1.17.Final</netty.spark-2.11.version>
         <spark.bin.download.url>
-          http://mirrors.advancedhosters.com/apache/spark/spark-2.3.3/spark-2.3.3-bin-hadoop2.7.tgz
+          https://archive.apache.org/dist/spark/spark-2.3.3/spark-2.3.3-bin-hadoop2.7.tgz
         </spark.bin.download.url>
         <spark.bin.name>spark-2.3.3-bin-hadoop2.7</spark.bin.name>
       </properties>
@@ -1069,7 +1066,7 @@
         <java.version>1.8</java.version>
         <py4j.version>0.10.7</py4j.version>
         <spark.bin.download.url>
-          http://mirrors.advancedhosters.com/apache/spark/spark-2.4.3/spark-2.4.3-bin-hadoop2.7.tgz
+          https://archive.apache.org/dist/spark/spark-2.4.3/spark-2.4.3-bin-hadoop2.7.tgz
         </spark.bin.download.url>
         <spark.bin.name>spark-2.4.3-bin-hadoop2.7</spark.bin.name>
       </properties>
