@@ -30,8 +30,7 @@ import scala.util.control.NonFatal
 
 import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.api.model.extensions.{Ingress, IngressBuilder}
-import io.fabric8.kubernetes.client._
-import io.fabric8.kubernetes.client.ConfigBuilder
+import io.fabric8.kubernetes.client.{ConfigBuilder, _}
 import org.apache.commons.lang.StringUtils
 
 import org.apache.livy.{LivyConf, Logging, Utils}
@@ -336,8 +335,17 @@ class KubernetesApplication(driverPod: Pod) {
   def getApplicationPod: Pod = driverPod
 }
 
-class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
+private[utils] case class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
   appLog: IndexedSeq[String], ingress: Option[Ingress], livyConf: LivyConf) {
+
+  import KubernetesConstants._
+
+  private val grafanaUrl = livyConf.get(LivyConf.KUBERNETES_GRAFANA_URL)
+  private val timeRange = livyConf.get(LivyConf.KUBERNETES_GRAFANA_TIME_RANGE)
+  private val lokiDatasource = livyConf.get(LivyConf.KUBERNETES_GRAFANA_LOKI_DATASOURCE)
+  private val sparkAppTagLogLabel = SPARK_APP_TAG_LABEL.replaceAll("-", "_")
+  private val sparkRoleLogLabel = SPARK_ROLE_LABEL.replaceAll("-", "_")
+  private val sparkExecIdLogLabel = SPARK_EXEC_ID_LABEL.replaceAll("-", "_")
 
   def getApplicationState: String =
     driver.map(_.getStatus.getPhase.toLowerCase).getOrElse("unknown")
@@ -345,15 +353,9 @@ class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
   def getApplicationLog: IndexedSeq[String] = appLog
 
   def getDriverLogUrl: Option[String] = {
-    import KubernetesConstants._
     if (livyConf.getBoolean(LivyConf.KUBERNETES_GRAFANA_LOKI_ENABLED)) {
       val appTag = driver.map(_.getMetadata.getLabels.get(SPARK_APP_TAG_LABEL))
       if (appTag.isDefined && appTag.get != null) {
-        val grafanaUrl = livyConf.get(LivyConf.KUBERNETES_GRAFANA_URL)
-        val timeRange = livyConf.get(LivyConf.KUBERNETES_GRAFANA_TIME_RANGE)
-        val lokiDatasource = livyConf.get(LivyConf.KUBERNETES_GRAFANA_LOKI_DATASOURCE)
-        val sparkAppTagLogLabel = SPARK_APP_TAG_LABEL.replaceAll("-", "_")
-        val sparkRoleLogLabel = SPARK_ROLE_LABEL.replaceAll("-", "_")
         return Some(
           s"""$grafanaUrl/explore?left=""" + URLEncoder.encode(
             s"""["now-$timeRange","now","$lokiDatasource",""" +
@@ -367,24 +369,21 @@ class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
   }
 
   def getExecutorsLogUrls: Option[String] = {
-    import KubernetesConstants._
     if (livyConf.getBoolean(LivyConf.KUBERNETES_GRAFANA_LOKI_ENABLED)) {
-      val grafanaUrl = livyConf.get(LivyConf.KUBERNETES_GRAFANA_URL)
-      val lokiDatasource = livyConf.get(LivyConf.KUBERNETES_GRAFANA_LOKI_DATASOURCE)
-      val timeRange = livyConf.get(LivyConf.KUBERNETES_GRAFANA_TIME_RANGE)
-      val sparkAppTagLogLabel = SPARK_APP_TAG_LABEL.replaceAll("-", "_")
-      val sparkRoleLogLabel = SPARK_ROLE_LABEL.replaceAll("-", "_")
-      val sparkExecIdLogLabel = SPARK_EXEC_ID_LABEL.replaceAll("-", "_")
-      val urls = executors.map(e => {
-        val labels = e.getMetadata.getLabels
+      val urls = executors.map(_.getMetadata.getLabels).flatMap(labels => {
         val sparkAppTag = labels.get(SPARK_APP_TAG_LABEL)
         val sparkExecId = labels.get(SPARK_EXEC_ID_LABEL)
-        s"executor-$sparkExecId#$grafanaUrl/explore?left=" + URLEncoder.encode(
-          s"""["now-$timeRange","now","$lokiDatasource",""" +
-            s"""{"expr":"{$sparkAppTagLogLabel=\\"$sparkAppTag\\",""" +
-            s"""$sparkRoleLogLabel=\\"$SPARK_ROLE_EXECUTOR\\",""" +
-            s"""$sparkExecIdLogLabel=\\"$sparkExecId\\"}"},""" +
-            s"""{"ui":[true,true,true,"exact"]}]""", "UTF-8")
+        if (sparkAppTag != null && sparkExecId != null) {
+          val sparkRole = labels.getOrDefault(SPARK_ROLE_LABEL, SPARK_ROLE_EXECUTOR)
+          Some(s"executor-$sparkExecId#$grafanaUrl/explore?left=" + URLEncoder.encode(
+            s"""["now-$timeRange","now","$lokiDatasource",""" +
+              s"""{"expr":"{$sparkAppTagLogLabel=\\"$sparkAppTag\\",""" +
+              s"""$sparkRoleLogLabel=\\"$sparkRole\\",""" +
+              s"""$sparkExecIdLogLabel=\\"$sparkExecId\\"}"},""" +
+              s"""{"ui":[true,true,true,"exact"]}]""", "UTF-8"))
+        } else {
+          None
+        }
       })
       if (urls.nonEmpty) return Some(urls.mkString(";"))
     }
@@ -394,7 +393,7 @@ class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
   def getTrackingUrl: Option[String] = {
     val host = ingress.map(_.getSpec.getRules.get(0).getHost)
     val path = driver
-      .map(_.getMetadata.getLabels.getOrDefault(KubernetesConstants.SPARK_APP_TAG_LABEL, "unknown"))
+      .map(_.getMetadata.getLabels.getOrDefault(SPARK_APP_TAG_LABEL, "unknown"))
     val protocol = livyConf.get(LivyConf.KUBERNETES_INGRESS_PROTOCOL)
     if (host.isDefined && path.isDefined) Some(s"$protocol://${host.get}/${path.get}")
     else None
@@ -440,12 +439,10 @@ class KubernetesAppReport(driver: Option[Pod], executors: Seq[Pod],
 
 }
 
-object KubernetesExtensions {
-
+private[utils] object KubernetesExtensions {
   import KubernetesConstants._
 
   implicit class KubernetesClientExtensions(client: KubernetesClient) {
-
     import scala.collection.JavaConverters._
 
     private val NGINX_CONFIG_SNIPPET: String =
@@ -497,7 +494,7 @@ object KubernetesExtensions {
       val ingress = client.extensions.ingresses.inNamespace(app.getApplicationNamespace)
         .withLabel(SPARK_APP_TAG_LABEL, app.getApplicationTag)
         .list.getItems.asScala.headOption
-      new KubernetesAppReport(driver, executors, appLog, ingress, livyConf)
+      KubernetesAppReport(driver, executors, appLog, ingress, livyConf)
     }
 
     def createSparkUIIngress(app: KubernetesApplication, livyConf: LivyConf): Unit = {
@@ -616,14 +613,12 @@ object KubernetesExtensions {
 
 }
 
-object KubernetesClientFactory {
-
+private[utils] object KubernetesClientFactory {
   import java.io.File
-
   import com.google.common.base.Charsets
   import com.google.common.io.Files
 
-  implicit class OptionString(val string: String) extends AnyVal {
+  private implicit class OptionString(val string: String) extends AnyVal {
     def toOption: Option[String] = if (string == null || string.isEmpty) None else Option(string)
   }
 
@@ -647,9 +642,9 @@ object KubernetesClientFactory {
         (token, configBuilder) => configBuilder.withOauthToken(token)
       }
       .withOption(oauthTokenFile) {
-        (filePath, configBuilder) =>
+        (file, configBuilder) =>
           configBuilder
-            .withOauthToken(Files.toString(new File(filePath), Charsets.UTF_8))
+            .withOauthToken(Files.toString(new File(file), Charsets.UTF_8))
       }
       .withOption(caCertFile) {
         (file, configBuilder) => configBuilder.withCaCertFile(file)
@@ -664,7 +659,7 @@ object KubernetesClientFactory {
     new DefaultKubernetesClient(config)
   }
 
-  private def sparkMasterToKubernetesApi(sparkMaster: String): String = {
+  def sparkMasterToKubernetesApi(sparkMaster: String): String = {
     val replaced = sparkMaster.replaceFirst("k8s://", "")
     if (!replaced.startsWith("http")) s"https://$replaced"
     else replaced
