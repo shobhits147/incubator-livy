@@ -52,14 +52,14 @@ object SparkKubernetesApp extends Logging {
           val iter = leakedAppTags.entrySet().iterator()
           var isRemoved = false
           val now = System.currentTimeMillis()
-          val apps = kubernetesClient.getApplications()
+          val apps = withRetry(kubernetesClient.getApplications())
           while (iter.hasNext) {
             val entry = iter.next()
             apps.find(_.getApplicationTag.contains(entry.getKey))
               .foreach({
                 app =>
                   info(s"Kill leaked app ${app.getApplicationId}")
-                  kubernetesClient.killApplication(app)
+                  withRetry(kubernetesClient.killApplication(app))
                   iter.remove()
                   isRemoved = true
               })
@@ -99,6 +99,18 @@ object SparkKubernetesApp extends Logging {
     leakedAppsGCThread.setDaemon(true)
     leakedAppsGCThread.setName("LeakedAppsGCThread")
     leakedAppsGCThread.start()
+  }
+
+  // Returning T, throwing the exception on failure
+  @tailrec
+  private def withRetry[T](fn: => T, n: Int = 3, retryBackoff: Long = 1000): T = {
+    Try { fn } match {
+      case Success(x) => x
+      case _ if n > 1 =>
+        Thread.sleep(Math.max(retryBackoff, 1000))
+        withRetry(fn, n - 1)
+      case Failure(e) => throw e
+    }
   }
 
 }
@@ -142,7 +154,7 @@ class SparkKubernetesApp private[utils] (
       listener.foreach(_.appIdKnown(appId))
 
       if (livyConf.getBoolean(LivyConf.KUBERNETES_INGRESS_CREATE)) {
-        kubernetesClient.createSparkUIIngress(app, livyConf)
+        withRetry(kubernetesClient.createSparkUIIngress(app, livyConf))
       }
 
       var appInfo = AppInfo()
@@ -198,7 +210,7 @@ class SparkKubernetesApp private[utils] (
 
   override def kill(): Unit = synchronized {
     try {
-      kubernetesClient.killApplication(Await.result(appPromise.future, appLookupTimeout))
+      withRetry(kubernetesClient.killApplication(Await.result(appPromise.future, appLookupTimeout)))
     } catch {
       // We cannot kill the Kubernetes app without the appTag.
       // There's a chance the Kubernetes app hasn't been submitted during a livy-server failure.
@@ -238,7 +250,7 @@ class SparkKubernetesApp private[utils] (
     deadline: Deadline): KubernetesApplication = {
     import KubernetesExtensions._
 
-    kubernetesClient.getApplications().find(_.getApplicationTag.contains(appTag))
+    withRetry(kubernetesClient.getApplications().find(_.getApplicationTag.contains(appTag)))
     match {
       case Some(app) => app
       case None =>
@@ -254,18 +266,6 @@ class SparkKubernetesApp private[utils] (
           Clock.sleep(pollInterval.toMillis)
           getAppFromTag(appTag, pollInterval, deadline)
         }
-    }
-  }
-
-  // Returning T, throwing the exception on failure
-  @tailrec
-  private def withRetry[T](fn: => T, n: Int = 3, retryBackoff: Long = 1000): T = {
-    Try { fn } match {
-      case Success(x) => x
-      case _ if n > 1 =>
-        Thread.sleep(Math.max(retryBackoff, 1000))
-        withRetry(fn, n - 1)
-      case Failure(e) => throw e
     }
   }
 
@@ -403,7 +403,7 @@ private[utils] case class KubernetesAppReport(driver: Option[Pod], executors: Se
     (Seq(driver) ++ executors.sortBy(_.getMetadata.getName).map(Some(_)))
       .filter(_.nonEmpty)
       .map(opt => buildSparkPodDiagnosticsPrettyString(opt.get))
-      .mkString("\n").split("\n").toIndexedSeq
+      .flatMap(_.split("\n")).toIndexedSeq
   }
 
   private def buildSparkPodDiagnosticsPrettyString(pod: Pod): String = {
