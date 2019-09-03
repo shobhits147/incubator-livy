@@ -391,7 +391,7 @@ private[utils] case class KubernetesAppReport(driver: Option[Pod], executors: Se
   }
 
   def getTrackingUrl: Option[String] = {
-    val host = ingress.map(_.getSpec.getRules.get(0).getHost)
+    val host = ingress.flatMap(i => Try(i.getSpec.getRules.get(0).getHost).toOption)
     val path = driver
       .map(_.getMetadata.getLabels.getOrDefault(SPARK_APP_TAG_LABEL, "unknown"))
     val protocol = livyConf.get(LivyConf.KUBERNETES_INGRESS_PROTOCOL)

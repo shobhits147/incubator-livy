@@ -19,6 +19,7 @@ package org.apache.livy.utils
 import java.util.Objects._
 
 import io.fabric8.kubernetes.api.model.{ObjectMeta, Pod, PodStatus}
+import io.fabric8.kubernetes.api.model.extensions.{Ingress, IngressRule, IngressSpec}
 import org.mockito.Mockito.when
 import org.scalatest.FunSpec
 import org.scalatest.mock.MockitoSugar._
@@ -52,13 +53,13 @@ class SparkKubernetesAppSpec extends FunSpec with LivyBaseUnitTestSuite {
       when(mock[Pod].getMetadata).thenReturn(metaWithLabel).getMock[Pod]
     }
 
-    it("should return driver log url") {
+    def driverMock(labelExists: Boolean): Option[Pod] = {
+      val labels = if (labelExists) Map(KubernetesConstants.SPARK_APP_TAG_LABEL -> "app_tag")
+      else Map.empty[String, String]
+      Some(podMockWithLabels(labels))
+    }
 
-      def driverMock(labelExists: Boolean): Option[Pod] = {
-        val labels = if (labelExists) Map(KubernetesConstants.SPARK_APP_TAG_LABEL -> "app_tag")
-        else Map.empty[String, String]
-        Some(podMockWithLabels(labels))
-      }
+    it("should return driver log url") {
 
       def test(labelExists: Boolean, lokiEnabled: Boolean, shouldBeDefined: Boolean): Unit =
         assertResult(shouldBeDefined) {
@@ -99,6 +100,68 @@ class SparkKubernetesAppSpec extends FunSpec with LivyBaseUnitTestSuite {
       test(labelExists = true, lokiEnabled = true, shouldBeDefined = true)
       assert(KubernetesAppReport(None, Seq.empty, IndexedSeq.empty, None, livyConf(true))
         .getExecutorsLogUrls.isEmpty)
+    }
+
+    it("should return driver ingress url") {
+
+      def livyConf(protocol: Option[String]): LivyConf = {
+        val conf = new LivyConf()
+        protocol.map(conf.set(LivyConf.KUBERNETES_INGRESS_PROTOCOL, _)).getOrElse(conf)
+      }
+
+      def ingressMock(host: Option[String]): Ingress = {
+        val ingressRules = host.map(h =>
+          List(when(mock[IngressRule].getHost).thenReturn(h).getMock[IngressRule]))
+          .getOrElse(List.empty).asJava
+        val ingressSpec = when(mock[IngressSpec].getRules)
+          .thenReturn(ingressRules).getMock[IngressSpec]
+        when(mock[Ingress].getSpec).thenReturn(ingressSpec).getMock[Ingress]
+      }
+
+      def test(driver: Option[Pod], ingress: Option[Ingress],
+               protocol: Option[String], shouldBeDefined: Boolean): Unit = {
+        assertResult(shouldBeDefined) {
+          KubernetesAppReport(driver, Seq.empty, IndexedSeq.empty, ingress, livyConf(protocol))
+            .getTrackingUrl.isDefined
+        }
+      }
+
+      val hostname = Some("hostname")
+      val protocol = Some("protocol")
+
+      test(None, None, None, shouldBeDefined = false)
+      test(None, None, protocol, shouldBeDefined = false)
+      test(None, Some(ingressMock(None)), None, shouldBeDefined = false)
+      test(None, Some(ingressMock(None)), protocol, shouldBeDefined = false)
+      test(None, Some(ingressMock(hostname)), None, shouldBeDefined = false)
+      test(None, Some(ingressMock(hostname)), protocol, shouldBeDefined = false)
+
+      test(driverMock(true), None, None, shouldBeDefined = false)
+      test(driverMock(true), None, protocol, shouldBeDefined = false)
+      test(driverMock(true), Some(ingressMock(None)), None, shouldBeDefined = false)
+      test(driverMock(true), Some(ingressMock(None)), protocol, shouldBeDefined = false)
+      test(driverMock(true), Some(ingressMock(hostname)), None, shouldBeDefined = true)
+      test(driverMock(true), Some(ingressMock(hostname)), protocol, shouldBeDefined = true)
+
+      test(driverMock(false), None, None, shouldBeDefined = false)
+      test(driverMock(false), None, protocol, shouldBeDefined = false)
+      test(driverMock(false), Some(ingressMock(None)), None, shouldBeDefined = false)
+      test(driverMock(false), Some(ingressMock(None)), protocol, shouldBeDefined = false)
+      test(driverMock(false), Some(ingressMock(hostname)), None, shouldBeDefined = true)
+      test(driverMock(false), Some(ingressMock(hostname)), protocol, shouldBeDefined = true)
+
+      assertResult(s"${protocol.get}://${hostname.get}/app_tag") {
+        KubernetesAppReport(driverMock(true), Seq.empty, IndexedSeq.empty,
+          Some(ingressMock(hostname)), livyConf(protocol)).getTrackingUrl.get
+      }
+      assertResult(s"${protocol.get}://${hostname.get}/unknown") {
+        KubernetesAppReport(driverMock(false), Seq.empty, IndexedSeq.empty,
+          Some(ingressMock(hostname)), livyConf(protocol)).getTrackingUrl.get
+      }
+    }
+
+    it("should return application diagnostics") {
+
     }
 
   }
