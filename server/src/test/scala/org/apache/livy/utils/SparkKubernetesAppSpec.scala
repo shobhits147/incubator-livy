@@ -18,7 +18,7 @@ package org.apache.livy.utils
 
 import java.util.Objects._
 
-import io.fabric8.kubernetes.api.model.{ObjectMeta, Pod, PodStatus}
+import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.api.model.extensions.{Ingress, IngressRule, IngressSpec}
 import org.mockito.Mockito.when
 import org.scalatest.FunSpec
@@ -158,10 +158,6 @@ class SparkKubernetesAppSpec extends FunSpec with LivyBaseUnitTestSuite {
         KubernetesAppReport(driverMock(false), Seq.empty, IndexedSeq.empty,
           Some(ingressMock(hostname)), livyConf(protocol)).getTrackingUrl.get
       }
-    }
-
-    it("should return application diagnostics") {
-
     }
 
   }

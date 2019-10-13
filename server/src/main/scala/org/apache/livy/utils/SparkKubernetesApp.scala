@@ -189,7 +189,7 @@ class SparkKubernetesApp private[utils] (
       debug(s"$appId $state ${kubernetesDiagnostics.mkString(" ")}")
     } catch {
       case _: InterruptedException =>
-        kubernetesDiagnostics = ArrayBuffer("Session stopped by user.")
+        kubernetesDiagnostics = ArrayBuffer("Application stopped by user.")
         changeState(SparkApp.State.KILLED)
       case NonFatal(e) =>
         error(s"Error while refreshing Kubernetes state", e)
